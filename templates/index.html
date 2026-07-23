@@ -5,67 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AudioSync - Sincronize seu Áudio</title>
     <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #121212;
-            color: #ffffff;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            margin: 0;
-        }
-        .container {
-            background-color: #1e1e1e;
-            padding: 40px;
-            border-radius: 12px;
-            box-shadow: 0 8px 16px rgba(0,0,0,0.5);
-            text-align: center;
-            max-width: 400px;
-            width: 90%;
-        }
+        /* O CSS continua exatamente igual ao anterior */
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #121212; color: #ffffff; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+        .container { background-color: #1e1e1e; padding: 40px; border-radius: 12px; box-shadow: 0 8px 16px rgba(0,0,0,0.5); text-align: center; max-width: 400px; width: 90%; }
         h1 { color: #00ff88; margin-bottom: 30px; }
-        .btn {
-            background-color: #00ff88;
-            color: #121212;
-            border: none;
-            padding: 15px 20px;
-            margin: 10px 0;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            width: 100%;
-            transition: 0.3s;
-        }
+        .btn { background-color: #00ff88; color: #121212; border: none; padding: 15px 20px; margin: 10px 0; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; width: 100%; transition: 0.3s; }
         .btn:hover { background-color: #00cc6a; }
-        .btn-secondary {
-            background-color: #333;
-            color: #fff;
-        }
+        .btn-secondary { background-color: #333; color: #fff; }
         .btn-secondary:hover { background-color: #444; }
-        .panel { display: none; } /* Oculta os painéis por padrão */
+        .panel { display: none; }
         .active-panel { display: block; }
-        input[type="text"] {
-            width: calc(100% - 20px);
-            padding: 15px 10px;
-            margin: 15px 0;
-            border-radius: 8px;
-            border: 1px solid #333;
-            background-color: #2a2a2a;
-            color: #fff;
-            font-size: 24px;
-            text-align: center;
-            letter-spacing: 5px;
-        }
-        .pin-display {
-            font-size: 48px;
-            font-weight: bold;
-            color: #00ff88;
-            letter-spacing: 8px;
-            margin: 20px 0;
-        }
+        input[type="text"] { width: calc(100% - 20px); padding: 15px 10px; margin: 15px 0; border-radius: 8px; border: 1px solid #333; background-color: #2a2a2a; color: #fff; font-size: 24px; text-align: center; letter-spacing: 5px; }
+        .pin-display { font-size: 48px; font-weight: bold; color: #00ff88; letter-spacing: 8px; margin: 20px 0; }
         .status { margin-top: 15px; font-size: 14px; color: #aaa; }
     </style>
 </head>
@@ -74,14 +25,14 @@
     <div class="container">
         <h1>AudioSync 🎧</h1>
 
-        <!-- PAINEL INICIAL (HUB) -->
+        <!-- HUB -->
         <div id="hub-panel" class="panel active-panel">
             <p>O que você deseja fazer?</p>
             <button class="btn" onclick="showPanel('transmit-panel'); setupTransmitter();">💻 Quero Transmitir (PC)</button>
             <button class="btn btn-secondary" onclick="showPanel('receive-panel');">📱 Quero Ouvir (Celular)</button>
         </div>
 
-        <!-- PAINEL DO TRANSMISSOR (PC) -->
+        <!-- PC -->
         <div id="transmit-panel" class="panel">
             <h2>Modo Transmissão</h2>
             <p>Seu código de acesso é:</p>
@@ -89,10 +40,9 @@
             <button id="btn-start-transmit" class="btn" onclick="startTransmitting()">Iniciar Transmissão</button>
             <button class="btn btn-secondary" onclick="resetApp()">Voltar</button>
             <p id="transmit-status" class="status">Aguardando início...</p>
-            <p style="font-size: 12px; color: #ffeb3b;">⚠️ Importante: Ao compartilhar a tela, lembre-se de marcar a opção "Compartilhar áudio do sistema".</p>
         </div>
 
-        <!-- PAINEL DO RECEPTOR (CELULAR) -->
+        <!-- CELULAR -->
         <div id="receive-panel" class="panel">
             <h2>Modo Recepção</h2>
             <p>Digite o PIN mostrado no PC:</p>
@@ -103,21 +53,27 @@
         </div>
     </div>
 
+    <!-- Elemento invisível que toca o áudio no celular -->
+    <audio id="remoteAudio" autoplay playsinline style="display: none;"></audio>
+
     <script>
         let ws;
-        let mediaRecorder;
+        let peerConnection;
+        let localStream;
         let currentPin;
 
-        // Função para alternar as telas
+        // Servidor do Google para ajudar a conectar o PC e o Celular em redes diferentes
+        const iceConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+
         function showPanel(panelId) {
             document.querySelectorAll('.panel').forEach(p => p.classList.remove('active-panel'));
             document.getElementById(panelId).classList.add('active-panel');
         }
 
-        // Volta para o início e desconecta tudo
         function resetApp() {
             if (ws) ws.close();
-            if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+            if (peerConnection) peerConnection.close();
+            if (localStream) localStream.getTracks().forEach(track => track.stop());
             showPanel('hub-panel');
             document.getElementById('transmit-status').innerText = "Aguardando início...";
             document.getElementById('receive-status').innerText = "Aguardando conexão...";
@@ -127,7 +83,6 @@
            LÓGICA DO TRANSMISSOR (PC)
            ========================================= */
         function setupTransmitter() {
-            // Gera um PIN de 4 dígitos aleatório
             currentPin = Math.floor(1000 + Math.random() * 9000).toString();
             document.getElementById('pin-display').innerText = currentPin;
         }
@@ -135,43 +90,57 @@
         async function startTransmitting() {
             const statusText = document.getElementById('transmit-status');
             try {
-                // Pede permissão para capturar a tela e o áudio
-                const stream = await navigator.mediaDevices.getDisplayMedia({
-                    video: true, // O navegador exige pedir video para compartilhar áudio do sistema
-                    audio: {
-                        echoCancellation: false,
-                        noiseSuppression: false,
-                        autoGainControl: false
-                    }
+                // Captura a tela e o áudio
+                localStream = await navigator.mediaDevices.getDisplayMedia({
+                    video: true,
+                    audio: true
                 });
 
-                // Conecta ao servidor via WebSocket usando o PIN
+                // Trava de segurança: Verifica se o usuário lembrou de marcar a caixa de áudio
+                if (localStream.getAudioTracks().length === 0) {
+                    alert("⚠️ Você esqueceu de marcar a opção 'Compartilhar áudio do sistema' na janela do navegador! Tente novamente.");
+                    resetApp();
+                    return;
+                }
+
                 const protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
                 ws = new WebSocket(protocol + location.host + '/audio/' + currentPin);
 
-                ws.onopen = () => {
-                    statusText.innerText = "Transmissão ATIVA! 🔴";
-                    statusText.style.color = "#00ff88";
-                    
-                    // Empacota o áudio e envia para o servidor a cada 100ms
-                    mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
-                    mediaRecorder.ondataavailable = (e) => {
-                        if (e.data.size > 0 && ws.readyState === WebSocket.OPEN) {
-                            ws.send(e.data);
-                        }
-                    };
-                    mediaRecorder.start(100);
+                ws.onopen = () => { statusText.innerText = "Aguardando o celular conectar... ⏳"; };
+
+                ws.onmessage = async (event) => {
+                    const msg = JSON.parse(event.data);
+
+                    // Quando o celular avisar que entrou na sala
+                    if (msg.type === 'join') {
+                        peerConnection = new RTCPeerConnection(iceConfig);
+                        localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+                        peerConnection.onicecandidate = e => {
+                            if (e.candidate) ws.send(JSON.stringify({ type: 'ice', candidate: e.candidate }));
+                        };
+
+                        const offer = await peerConnection.createOffer();
+                        await peerConnection.setLocalDescription(offer);
+                        ws.send(JSON.stringify({ type: 'offer', sdp: offer }));
+                        
+                        statusText.innerText = "Transmissão ATIVA! 🔴";
+                        statusText.style.color = "#00ff88";
+                    } 
+                    else if (msg.type === 'answer') {
+                        await peerConnection.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+                    } 
+                    else if (msg.type === 'ice') {
+                        await peerConnection.addIceCandidate(new RTCIceCandidate(msg.candidate));
+                    }
                 };
 
-                ws.onclose = () => { statusText.innerText = "Desconectado do servidor."; };
-                
-                // Se o usuário parar o compartilhamento pelo botão nativo do navegador
-                stream.getVideoTracks()[0].onended = () => resetApp();
+                // Se o usuário fechar o compartilhamento nativo
+                localStream.getVideoTracks()[0].onended = () => resetApp();
 
             } catch (err) {
                 console.error(err);
-                statusText.innerText = "Erro: Permissão negada ou erro ao capturar.";
-                statusText.style.color = "red";
+                statusText.innerText = "Erro ao capturar tela. Tente novamente.";
             }
         }
 
@@ -183,47 +152,48 @@
             const statusText = document.getElementById('receive-status');
 
             if (pinInput.length !== 4) {
-                alert("Por favor, digite um PIN válido de 4 dígitos.");
+                alert("Digite um PIN de 4 dígitos.");
                 return;
             }
 
             const protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
             ws = new WebSocket(protocol + location.host + '/audio/' + pinInput);
-            ws.binaryType = "arraybuffer";
 
             ws.onopen = () => {
-                statusText.innerText = "Conectado! Reproduzindo áudio... 🔊";
-                statusText.style.color = "#00ff88";
-                playAudioStream();
+                statusText.innerText = "Conectando ao PC... ⏳";
+                // Avisa ao PC que o celular chegou na sala
+                ws.send(JSON.stringify({ type: 'join' }));
             };
-
-            ws.onerror = () => {
-                statusText.innerText = "Erro ao conectar.";
-                statusText.style.color = "red";
-            };
-            
-            ws.onclose = () => { statusText.innerText = "Transmissão encerrada."; };
-        }
-
-        function playAudioStream() {
-            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            let nextPlayTime = audioCtx.currentTime;
 
             ws.onmessage = async (event) => {
-                try {
-                    const audioData = await audioCtx.decodeAudioData(event.data);
-                    const source = audioCtx.createBufferSource();
-                    source.buffer = audioData;
-                    source.connect(audioCtx.destination);
+                const msg = JSON.parse(event.data);
+
+                if (!peerConnection) {
+                    peerConnection = new RTCPeerConnection(iceConfig);
                     
-                    // Agenda o áudio para tocar na sequência correta sem engasgar
-                    if (nextPlayTime < audioCtx.currentTime) {
-                        nextPlayTime = audioCtx.currentTime;
-                    }
-                    source.start(nextPlayTime);
-                    nextPlayTime += audioData.duration;
-                } catch (e) {
-                    console.error("Erro ao decodificar áudio:", e);
+                    peerConnection.onicecandidate = e => {
+                        if (e.candidate) ws.send(JSON.stringify({ type: 'ice', candidate: e.candidate }));
+                    };
+                    
+                    // Quando o áudio chegar do PC
+                    peerConnection.ontrack = e => {
+                        const audioElement = document.getElementById('remoteAudio');
+                        audioElement.srcObject = e.streams[0];
+                        audioElement.play().catch(err => console.log("Aguardando interação do usuário"));
+                        
+                        statusText.innerText = "Conectado! Reproduzindo áudio... 🔊";
+                        statusText.style.color = "#00ff88";
+                    };
+                }
+
+                if (msg.type === 'offer') {
+                    await peerConnection.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+                    const answer = await peerConnection.createAnswer();
+                    await peerConnection.setLocalDescription(answer);
+                    ws.send(JSON.stringify({ type: 'answer', sdp: answer }));
+                } 
+                else if (msg.type === 'ice') {
+                    await peerConnection.addIceCandidate(new RTCIceCandidate(msg.candidate));
                 }
             };
         }
