@@ -4,7 +4,7 @@ import time
 
 SAMPLE_RATE = 44100
 CHANNELS = 2
-CHUNK = 1024
+CHUNK = 100
 DEVICE_INDEX = 1
 
 SERVER_URL = "ws://127.0.0.1:5000/audio"
