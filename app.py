@@ -1,4 +1,4 @@
-from flask import Flask, render_template # type: ignore
+from flask import Flask, render_template, send_from_directory # type: ignore
 from flask_sock import Sock # type: ignore
 
 app = Flask(__name__)
@@ -8,6 +8,10 @@ clientes_conectados = set()
 total_acessos = 0
 
 salas = {}
+
+@app.route('/asd.txt')
+def serve_ads_txt():
+    return send_from_directory(app.root_path, 'ads.txt')
 
 @app.route('/')
 def index():
