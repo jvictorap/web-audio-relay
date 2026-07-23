@@ -47,6 +47,14 @@ def audio_relay(ws, pin):
         if not salas[pin]:
             del salas[pin]
 
+@app.route('/privacidade')
+def privacidade():
+    return render_template(privacidade.html)
+
+@app.route('/termos-de-uso')
+def termos():
+    return render_template('termos.html')
+
 if __name__ == '__main__':
 
     print("--------------------------------------------------")
