@@ -9,7 +9,7 @@ total_acessos = 0
 
 salas = {}
 
-@app.route('/asd.txt')
+@app.route('/ads.txt')
 def serve_ads_txt():
     return send_from_directory(app.root_path, 'ads.txt')
 
