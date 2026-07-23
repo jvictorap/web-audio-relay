@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel do Administrador</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f4f9; color: #333; padding: 40px; text-align: center; }
+        .card-container { display: flex; justify-content: center; gap: 20px; margin-top: 30px; }
+        .card { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); min-width: 200px; }
+        .card h2 { margin: 0; font-size: 40px; color: #1DB954; }
+        .card p { margin: 10px 0 0 0; font-weight: bold; color: #666; }
+        .btn-refresh { margin-top: 30px; padding: 10px 20px; background: #333; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>📊 Painel de Controle - PC Audio Sync</h1>
+    
+    <div class="card-container">
+        <div class="card">
+            <h2>{{ online }}</h2>
+            <p>Usuários Ouvindo Agora</p>
+        </div>
+        <div class="card">
+            <h2>{{ total }}</h2>
+            <p>Total de Acessos à Página</p>
+        </div>
+    </div>
+
+    <button class="btn-refresh" onclick="location.reload()">🔄 Atualizar Dados</button>
+</body>
+</html>

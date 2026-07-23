@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Audio Relay</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            text-align: center; 
+            padding: 20px; 
+            background: #121212; 
+            color: #ffffff; 
+            margin: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #1e1e1e;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        h1 { color: #1DB954; }
+        button { 
+            padding: 15px 40px; 
+            font-size: 20px; 
+            border: none; 
+            border-radius: 30px; 
+            background: #1DB954; 
+            color: white; 
+            font-weight: bold; 
+            cursor: pointer; 
+            margin: 20px 0;
+            transition: transform 0.2s, background 0.2s;
+        }
+        button:active { transform: scale(0.95); }
+        button:hover { background: #1ed760; }
+        #status { color: #aaa; font-size: 16px; font-weight: bold; margin-bottom: 30px; }
+        
+        /* Área de Solução de Problemas (Sua ideia!) */
+        .help-box {
+            background: #2a2a2a;
+            border-left: 5px solid #ff9800;
+            padding: 15px;
+            text-align: left;
+            border-radius: 5px;
+            margin-top: 30px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .help-box a { color: #4fc3f7; text-decoration: none; }
+        .help-box a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎧 PC Audio Sync</h1>
+        <p>Transforme seu celular em uma caixa de som sem fio em tempo real.</p>
+        
+        <button id="btn" onclick="startAudio()">▶ Conectar e Ouvir</button>
+        <p id="status">Aguardando conexão...</p>
+
+        <div class="help-box">
+            <strong>⚠️ Sem som no PC?</strong><br>
+            Se o seu computador não possui caixas de som ou a saída de áudio está com defeito, o Windows desativa o serviço de áudio. Para fazer este site funcionar, você precisa de um "cabo virtual". <br><br>
+            👉 <a href="https://vb-audio.com/Cable/" target="_blank">Baixe o VB-Audio Virtual Cable gratuitamente aqui</a> e defina-o como a saída de som padrão do Windows.
+        </div>
+    </div>
+
+    <script>
+        let audioCtx;
+        let nextPlayTime = 0;
+
+        function startAudio() {
+            const btn = document.getElementById('btn');
+            const status = document.getElementById('status');
+            
+            btn.style.display = 'none';
+            status.innerText = 'Conectando ao servidor...';
+
+            // Cria o motor de áudio nativo do navegador (44.1kHz Estéreo)
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 44100 });
+            
+            // Conecta no WebSocket dinamicamente (seja local ou na nuvem depois)
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${wsProtocol}//${location.host}/audio`;
+            const ws = new WebSocket(wsUrl);
+            ws.binaryType = 'arraybuffer';
+
+            ws.onopen = () => {
+                status.innerText = '🟢 Conectado! Som rolando.';
+                status.style.color = '#1DB954';
+            };
+
+            ws.onmessage = (event) => {
+                // A mesma mágica do zero delay que testamos antes
+                const int16Data = new Int16Array(event.data);
+                const float32Data = new Float32Array(int16Data.length);
+                
+                for(let i = 0; i < int16Data.length; i++) {
+                    float32Data[i] = int16Data[i] / 32768.0;
+                }
+
+                const frames = int16Data.length / 2;
+                const buffer = audioCtx.createBuffer(2, frames, 44100);
+                const left = buffer.getChannelData(0);
+                const right = buffer.getChannelData(1);
+
+                for (let i = 0; i < frames; i++) {
+                    left[i] = float32Data[i * 2];
+                    right[i] = float32Data[i * 2 + 1];
+                }
+
+                const source = audioCtx.createBufferSource();
+                source.buffer = buffer;
+                source.connect(audioCtx.destination);
+
+                if (nextPlayTime < audioCtx.currentTime) {
+                    nextPlayTime = audioCtx.currentTime + 0.05; 
+                }
+                source.start(nextPlayTime);
+                nextPlayTime += buffer.duration;
+            };
+
+            ws.onclose = () => {
+                status.innerText = '🔴 Desconectado pelo servidor.';
+                status.style.color = '#ff4d4d';
+                btn.style.display = 'inline-block';
+                btn.innerText = '🔄 Reconectar';
+            };
+        }
+    </script>
+</body>
+</html>
