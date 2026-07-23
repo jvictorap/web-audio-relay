@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AudioSync - Sincronize seu Áudio</title>
     <style>
-        /* O CSS continua exatamente igual ao anterior */
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #121212; color: #ffffff; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
         .container { background-color: #1e1e1e; padding: 40px; border-radius: 12px; box-shadow: 0 8px 16px rgba(0,0,0,0.5); text-align: center; max-width: 400px; width: 90%; }
         h1 { color: #00ff88; margin-bottom: 30px; }
@@ -53,16 +52,16 @@
         </div>
     </div>
 
-    <!-- Elemento invisível que toca o áudio no celular -->
+    <!-- Elemento de Áudio Oculto -->
     <audio id="remoteAudio" autoplay playsinline style="display: none;"></audio>
 
     <script>
         let ws;
-        let peerConnection;
+        let peerConnections = {}; // Agora é um Dicionário para suportar vários celulares!
         let localStream;
         let currentPin;
+        let myId; // Identificador único para cada dispositivo na sala
 
-        // Servidor do Google para ajudar a conectar o PC e o Celular em redes diferentes
         const iceConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
         function showPanel(panelId) {
@@ -72,7 +71,9 @@
 
         function resetApp() {
             if (ws) ws.close();
-            if (peerConnection) peerConnection.close();
+            // Desconecta todos os celulares logados
+            Object.values(peerConnections).forEach(pc => pc.close());
+            peerConnections = {};
             if (localStream) localStream.getTracks().forEach(track => track.stop());
             showPanel('hub-panel');
             document.getElementById('transmit-status').innerText = "Aguardando início...";
@@ -89,16 +90,22 @@
 
         async function startTransmitting() {
             const statusText = document.getElementById('transmit-status');
+            myId = 'host'; // O PC sempre será o 'host'
+            
             try {
-                // Captura a tela e o áudio
+                // CAPTURA DE ÁUDIO COM QUALIDADE DE ESTÚDIO
                 localStream = await navigator.mediaDevices.getDisplayMedia({
                     video: true,
-                    audio: true
+                    audio: {
+                        echoCancellation: false,   // Tira o som de aquário/robô
+                        noiseSuppression: false,   // Mantém os graves e a qualidade
+                        autoGainControl: false,    // Evita que o volume fique subindo e descendo
+                        channelCount: 2            // Força áudio estéreo
+                    }
                 });
 
-                // Trava de segurança: Verifica se o usuário lembrou de marcar a caixa de áudio
                 if (localStream.getAudioTracks().length === 0) {
-                    alert("⚠️ Você esqueceu de marcar a opção 'Compartilhar áudio do sistema' na janela do navegador! Tente novamente.");
+                    alert("⚠️ Você esqueceu de marcar a opção 'Compartilhar áudio do sistema' na janela do navegador!");
                     resetApp();
                     return;
                 }
@@ -106,40 +113,50 @@
                 const protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
                 ws = new WebSocket(protocol + location.host + '/audio/' + currentPin);
 
-                ws.onopen = () => { statusText.innerText = "Aguardando o celular conectar... ⏳"; };
+                ws.onopen = () => { statusText.innerText = "Sala aberta. Aguardando ouvintes... ⏳"; };
 
                 ws.onmessage = async (event) => {
                     const msg = JSON.parse(event.data);
 
-                    // Quando o celular avisar que entrou na sala
-                    if (msg.type === 'join') {
-                        peerConnection = new RTCPeerConnection(iceConfig);
-                        localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+                    // Só escuta mensagens destinadas ao host
+                    if (msg.target !== myId) return;
 
-                        peerConnection.onicecandidate = e => {
-                            if (e.candidate) ws.send(JSON.stringify({ type: 'ice', candidate: e.candidate }));
+                    // UM NOVO CELULAR ENTROU NA SALA
+                    if (msg.type === 'join') {
+                        const phoneId = msg.from;
+                        const pc = new RTCPeerConnection(iceConfig);
+                        peerConnections[phoneId] = pc; // Salva a conexão específica desse celular
+
+                        localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+                        pc.onicecandidate = e => {
+                            if (e.candidate) ws.send(JSON.stringify({ type: 'ice', candidate: e.candidate, from: myId, target: phoneId }));
                         };
 
-                        const offer = await peerConnection.createOffer();
-                        await peerConnection.setLocalDescription(offer);
-                        ws.send(JSON.stringify({ type: 'offer', sdp: offer }));
+                        const offer = await pc.createOffer();
+                        await pc.setLocalDescription(offer);
+                        ws.send(JSON.stringify({ type: 'offer', sdp: offer, from: myId, target: phoneId }));
                         
-                        statusText.innerText = "Transmissão ATIVA! 🔴";
+                        // Atualiza a tela com o número de pessoas ouvindo
+                        const listeners = Object.keys(peerConnections).length;
+                        statusText.innerText = `Transmissão ATIVA! 🔴 (${listeners} ouvinte${listeners > 1 ? 's' : ''})`;
                         statusText.style.color = "#00ff88";
                     } 
+                    // RESPOSTA DO CELULAR
                     else if (msg.type === 'answer') {
-                        await peerConnection.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+                        const pc = peerConnections[msg.from];
+                        if (pc) await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
                     } 
+                    // NEGOCIAÇÃO DE ROTA
                     else if (msg.type === 'ice') {
-                        await peerConnection.addIceCandidate(new RTCIceCandidate(msg.candidate));
+                        const pc = peerConnections[msg.from];
+                        if (pc) await pc.addIceCandidate(new RTCIceCandidate(msg.candidate));
                     }
                 };
 
-                // Se o usuário fechar o compartilhamento nativo
                 localStream.getVideoTracks()[0].onended = () => resetApp();
 
             } catch (err) {
-                console.error(err);
                 statusText.innerText = "Erro ao capturar tela. Tente novamente.";
             }
         }
@@ -151,49 +168,54 @@
             const pinInput = document.getElementById('pin-input').value;
             const statusText = document.getElementById('receive-status');
 
-            if (pinInput.length !== 4) {
-                alert("Digite um PIN de 4 dígitos.");
-                return;
-            }
+            if (pinInput.length !== 4) return alert("Digite um PIN de 4 dígitos.");
+
+            // Gera um ID único aleatório para este celular
+            myId = Math.random().toString(36).substring(2, 10);
 
             const protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
             ws = new WebSocket(protocol + location.host + '/audio/' + pinInput);
 
             ws.onopen = () => {
                 statusText.innerText = "Conectando ao PC... ⏳";
-                // Avisa ao PC que o celular chegou na sala
-                ws.send(JSON.stringify({ type: 'join' }));
+                // Envia aviso de entrada incluindo quem é ele e quem ele procura ('host')
+                ws.send(JSON.stringify({ type: 'join', from: myId, target: 'host' }));
             };
 
             ws.onmessage = async (event) => {
                 const msg = JSON.parse(event.data);
 
-                if (!peerConnection) {
-                    peerConnection = new RTCPeerConnection(iceConfig);
+                // Ignora mensagens que sejam para outros celulares na mesma sala
+                if (msg.target !== myId) return;
+
+                if (!peerConnections['host']) {
+                    const pc = new RTCPeerConnection(iceConfig);
+                    peerConnections['host'] = pc;
                     
-                    peerConnection.onicecandidate = e => {
-                        if (e.candidate) ws.send(JSON.stringify({ type: 'ice', candidate: e.candidate }));
+                    pc.onicecandidate = e => {
+                        if (e.candidate) ws.send(JSON.stringify({ type: 'ice', candidate: e.candidate, from: myId, target: 'host' }));
                     };
                     
-                    // Quando o áudio chegar do PC
-                    peerConnection.ontrack = e => {
+                    pc.ontrack = e => {
                         const audioElement = document.getElementById('remoteAudio');
                         audioElement.srcObject = e.streams[0];
-                        audioElement.play().catch(err => console.log("Aguardando interação do usuário"));
+                        audioElement.play().catch(err => console.log("Aguardando clique do usuário para tocar"));
                         
-                        statusText.innerText = "Conectado! Reproduzindo áudio... 🔊";
+                        statusText.innerText = "Conectado! Som na caixa! 🔊";
                         statusText.style.color = "#00ff88";
                     };
                 }
 
+                const pc = peerConnections['host'];
+
                 if (msg.type === 'offer') {
-                    await peerConnection.setRemoteDescription(new RTCSessionDescription(msg.sdp));
-                    const answer = await peerConnection.createAnswer();
-                    await peerConnection.setLocalDescription(answer);
-                    ws.send(JSON.stringify({ type: 'answer', sdp: answer }));
+                    await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+                    const answer = await pc.createAnswer();
+                    await pc.setLocalDescription(answer);
+                    ws.send(JSON.stringify({ type: 'answer', sdp: answer, from: myId, target: 'host' }));
                 } 
                 else if (msg.type === 'ice') {
-                    await peerConnection.addIceCandidate(new RTCIceCandidate(msg.candidate));
+                    await pc.addIceCandidate(new RTCIceCandidate(msg.candidate));
                 }
             };
         }
