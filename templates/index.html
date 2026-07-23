@@ -3,131 +3,228 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web Audio Relay</title>
+    <title>AudioSync - Sincronize seu Áudio</title>
     <style>
-        body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            text-align: center; 
-            padding: 20px; 
-            background: #121212; 
-            color: #ffffff; 
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #121212;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
             margin: 0;
         }
         .container {
-            max-width: 600px;
-            margin: 0 auto;
-            background: #1e1e1e;
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            background-color: #1e1e1e;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.5);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
         }
-        h1 { color: #1DB954; }
-        button { 
-            padding: 15px 40px; 
-            font-size: 20px; 
-            border: none; 
-            border-radius: 30px; 
-            background: #1DB954; 
-            color: white; 
-            font-weight: bold; 
-            cursor: pointer; 
+        h1 { color: #00ff88; margin-bottom: 30px; }
+        .btn {
+            background-color: #00ff88;
+            color: #121212;
+            border: none;
+            padding: 15px 20px;
+            margin: 10px 0;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            transition: 0.3s;
+        }
+        .btn:hover { background-color: #00cc6a; }
+        .btn-secondary {
+            background-color: #333;
+            color: #fff;
+        }
+        .btn-secondary:hover { background-color: #444; }
+        .panel { display: none; } /* Oculta os painéis por padrão */
+        .active-panel { display: block; }
+        input[type="text"] {
+            width: calc(100% - 20px);
+            padding: 15px 10px;
+            margin: 15px 0;
+            border-radius: 8px;
+            border: 1px solid #333;
+            background-color: #2a2a2a;
+            color: #fff;
+            font-size: 24px;
+            text-align: center;
+            letter-spacing: 5px;
+        }
+        .pin-display {
+            font-size: 48px;
+            font-weight: bold;
+            color: #00ff88;
+            letter-spacing: 8px;
             margin: 20px 0;
-            transition: transform 0.2s, background 0.2s;
         }
-        button:active { transform: scale(0.95); }
-        button:hover { background: #1ed760; }
-        #status { color: #aaa; font-size: 16px; font-weight: bold; margin-bottom: 30px; }
-        
-        /* Área de Solução de Problemas (Sua ideia!) */
-        .help-box {
-            background: #2a2a2a;
-            border-left: 5px solid #ff9800;
-            padding: 15px;
-            text-align: left;
-            border-radius: 5px;
-            margin-top: 30px;
-            font-size: 14px;
-            line-height: 1.5;
-        }
-        .help-box a { color: #4fc3f7; text-decoration: none; }
-        .help-box a:hover { text-decoration: underline; }
+        .status { margin-top: 15px; font-size: 14px; color: #aaa; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🎧 PC Audio Sync</h1>
-        <p>Transforme seu celular em uma caixa de som sem fio em tempo real.</p>
-        
-        <button id="btn" onclick="startAudio()">▶ Conectar e Ouvir</button>
-        <p id="status">Aguardando conexão...</p>
 
-        <div class="help-box">
-            <strong>⚠️ Sem som no PC?</strong><br>
-            Se o seu computador não possui caixas de som ou a saída de áudio está com defeito, o Windows desativa o serviço de áudio. Para fazer este site funcionar, você precisa de um "cabo virtual". <br><br>
-            👉 <a href="https://vb-audio.com/Cable/" target="_blank">Baixe o VB-Audio Virtual Cable gratuitamente aqui</a> e defina-o como a saída de som padrão do Windows.
+    <div class="container">
+        <h1>AudioSync 🎧</h1>
+
+        <!-- PAINEL INICIAL (HUB) -->
+        <div id="hub-panel" class="panel active-panel">
+            <p>O que você deseja fazer?</p>
+            <button class="btn" onclick="showPanel('transmit-panel'); setupTransmitter();">💻 Quero Transmitir (PC)</button>
+            <button class="btn btn-secondary" onclick="showPanel('receive-panel');">📱 Quero Ouvir (Celular)</button>
+        </div>
+
+        <!-- PAINEL DO TRANSMISSOR (PC) -->
+        <div id="transmit-panel" class="panel">
+            <h2>Modo Transmissão</h2>
+            <p>Seu código de acesso é:</p>
+            <div id="pin-display" class="pin-display">----</div>
+            <button id="btn-start-transmit" class="btn" onclick="startTransmitting()">Iniciar Transmissão</button>
+            <button class="btn btn-secondary" onclick="resetApp()">Voltar</button>
+            <p id="transmit-status" class="status">Aguardando início...</p>
+            <p style="font-size: 12px; color: #ffeb3b;">⚠️ Importante: Ao compartilhar a tela, lembre-se de marcar a opção "Compartilhar áudio do sistema".</p>
+        </div>
+
+        <!-- PAINEL DO RECEPTOR (CELULAR) -->
+        <div id="receive-panel" class="panel">
+            <h2>Modo Recepção</h2>
+            <p>Digite o PIN mostrado no PC:</p>
+            <input type="text" id="pin-input" placeholder="0000" maxlength="4">
+            <button class="btn" onclick="startReceiving()">Conectar e Ouvir</button>
+            <button class="btn btn-secondary" onclick="resetApp()">Voltar</button>
+            <p id="receive-status" class="status">Aguardando conexão...</p>
         </div>
     </div>
 
     <script>
-        let audioCtx;
-        let nextPlayTime = 0;
+        let ws;
+        let mediaRecorder;
+        let currentPin;
 
-        function startAudio() {
-            const btn = document.getElementById('btn');
-            const status = document.getElementById('status');
-            
-            btn.style.display = 'none';
-            status.innerText = 'Conectando ao servidor...';
+        // Função para alternar as telas
+        function showPanel(panelId) {
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active-panel'));
+            document.getElementById(panelId).classList.add('active-panel');
+        }
 
-            // Cria o motor de áudio nativo do navegador (44.1kHz Estéreo)
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 44100 });
-            
-            // Conecta no WebSocket dinamicamente (seja local ou na nuvem depois)
-            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsUrl = `${wsProtocol}//${location.host}/audio`;
-            const ws = new WebSocket(wsUrl);
-            ws.binaryType = 'arraybuffer';
+        // Volta para o início e desconecta tudo
+        function resetApp() {
+            if (ws) ws.close();
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+            showPanel('hub-panel');
+            document.getElementById('transmit-status').innerText = "Aguardando início...";
+            document.getElementById('receive-status').innerText = "Aguardando conexão...";
+        }
+
+        /* =========================================
+           LÓGICA DO TRANSMISSOR (PC)
+           ========================================= */
+        function setupTransmitter() {
+            // Gera um PIN de 4 dígitos aleatório
+            currentPin = Math.floor(1000 + Math.random() * 9000).toString();
+            document.getElementById('pin-display').innerText = currentPin;
+        }
+
+        async function startTransmitting() {
+            const statusText = document.getElementById('transmit-status');
+            try {
+                // Pede permissão para capturar a tela e o áudio
+                const stream = await navigator.mediaDevices.getDisplayMedia({
+                    video: true, // O navegador exige pedir video para compartilhar áudio do sistema
+                    audio: {
+                        echoCancellation: false,
+                        noiseSuppression: false,
+                        autoGainControl: false
+                    }
+                });
+
+                // Conecta ao servidor via WebSocket usando o PIN
+                const protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
+                ws = new WebSocket(protocol + location.host + '/audio/' + currentPin);
+
+                ws.onopen = () => {
+                    statusText.innerText = "Transmissão ATIVA! 🔴";
+                    statusText.style.color = "#00ff88";
+                    
+                    // Empacota o áudio e envia para o servidor a cada 100ms
+                    mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
+                    mediaRecorder.ondataavailable = (e) => {
+                        if (e.data.size > 0 && ws.readyState === WebSocket.OPEN) {
+                            ws.send(e.data);
+                        }
+                    };
+                    mediaRecorder.start(100);
+                };
+
+                ws.onclose = () => { statusText.innerText = "Desconectado do servidor."; };
+                
+                // Se o usuário parar o compartilhamento pelo botão nativo do navegador
+                stream.getVideoTracks()[0].onended = () => resetApp();
+
+            } catch (err) {
+                console.error(err);
+                statusText.innerText = "Erro: Permissão negada ou erro ao capturar.";
+                statusText.style.color = "red";
+            }
+        }
+
+        /* =========================================
+           LÓGICA DO RECEPTOR (CELULAR)
+           ========================================= */
+        function startReceiving() {
+            const pinInput = document.getElementById('pin-input').value;
+            const statusText = document.getElementById('receive-status');
+
+            if (pinInput.length !== 4) {
+                alert("Por favor, digite um PIN válido de 4 dígitos.");
+                return;
+            }
+
+            const protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
+            ws = new WebSocket(protocol + location.host + '/audio/' + pinInput);
+            ws.binaryType = "arraybuffer";
 
             ws.onopen = () => {
-                status.innerText = '🟢 Conectado! Som rolando.';
-                status.style.color = '#1DB954';
+                statusText.innerText = "Conectado! Reproduzindo áudio... 🔊";
+                statusText.style.color = "#00ff88";
+                playAudioStream();
             };
 
-            ws.onmessage = (event) => {
-                // A mesma mágica do zero delay que testamos antes
-                const int16Data = new Int16Array(event.data);
-                const float32Data = new Float32Array(int16Data.length);
-                
-                for(let i = 0; i < int16Data.length; i++) {
-                    float32Data[i] = int16Data[i] / 32768.0;
-                }
-
-                const frames = int16Data.length / 2;
-                const buffer = audioCtx.createBuffer(2, frames, 44100);
-                const left = buffer.getChannelData(0);
-                const right = buffer.getChannelData(1);
-
-                for (let i = 0; i < frames; i++) {
-                    left[i] = float32Data[i * 2];
-                    right[i] = float32Data[i * 2 + 1];
-                }
-
-                const source = audioCtx.createBufferSource();
-                source.buffer = buffer;
-                source.connect(audioCtx.destination);
-
-                if (nextPlayTime < audioCtx.currentTime) {
-                    nextPlayTime = audioCtx.currentTime + 0.05; 
-                }
-                source.start(nextPlayTime);
-                nextPlayTime += buffer.duration;
+            ws.onerror = () => {
+                statusText.innerText = "Erro ao conectar.";
+                statusText.style.color = "red";
             };
+            
+            ws.onclose = () => { statusText.innerText = "Transmissão encerrada."; };
+        }
 
-            ws.onclose = () => {
-                status.innerText = '🔴 Desconectado pelo servidor.';
-                status.style.color = '#ff4d4d';
-                btn.style.display = 'inline-block';
-                btn.innerText = '🔄 Reconectar';
+        function playAudioStream() {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            let nextPlayTime = audioCtx.currentTime;
+
+            ws.onmessage = async (event) => {
+                try {
+                    const audioData = await audioCtx.decodeAudioData(event.data);
+                    const source = audioCtx.createBufferSource();
+                    source.buffer = audioData;
+                    source.connect(audioCtx.destination);
+                    
+                    // Agenda o áudio para tocar na sequência correta sem engasgar
+                    if (nextPlayTime < audioCtx.currentTime) {
+                        nextPlayTime = audioCtx.currentTime;
+                    }
+                    source.start(nextPlayTime);
+                    nextPlayTime += audioData.duration;
+                } catch (e) {
+                    console.error("Erro ao decodificar áudio:", e);
+                }
             };
         }
     </script>

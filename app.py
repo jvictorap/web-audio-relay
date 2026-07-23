@@ -7,6 +7,8 @@ sock = Sock(app)
 clientes_conectados = set()
 total_acessos = 0
 
+salas = {}
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -17,29 +19,33 @@ def admin():
     total_acessos +=1
     return render_template('admin.html')
 
-@sock.route('/audio')
-def audio_relay(ws):
-    clientes_conectados.add(ws)
-    print(f"Novo dispositivo conectado! Total na sala: {len(clientes_conectados)}")
+@sock.route('/audio/<pin>')
+def audio_relay(ws, pin):
+    if pin not in salas:
+        salas[pin] = []
+
+    salas[pin].append(ws)
 
     try:
         while True:
             data = ws.receive()
             if data:
-                for cliente in clientes_conectados.copy():
+                # CORREÇÃO 1: Envia apenas para quem está na mesma sala (PIN)
+                for cliente in salas[pin]:
                     if cliente != ws:
                         try:
                             cliente.send(data)
-                        except Exception:
-                            clientes_conectados.remove(cliente)
-
-    except:
-        pass
+                        except:
+                            pass
+    except Exception as e:
+        print(f"Desconectado da sala {pin}")
     finally:
-        if ws in clientes_conectados:
-            clientes_conectados.remove(ws)
-        print(f"Dispositivo saiu. Total na sala: {len(clientes_conectados)}")
-
+        # CORREÇÃO 2: 'salas' no plural
+        if ws in salas.get(pin, []):
+            salas[pin].remove(ws)
+            
+        if not salas[pin]:
+            del salas[pin]
 
 if __name__ == '__main__':
 

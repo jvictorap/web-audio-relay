@@ -4,10 +4,10 @@ import time
 
 SAMPLE_RATE = 44100
 CHANNELS = 2
-CHUNK = 100
+CHUNK = 1024
 DEVICE_INDEX = 1
 
-SERVER_URL = "ws://127.0.0.1:5000/audio"
+SERVER_URL = "wss://web-audio-sync-nh4z.onrender.com/audio"
 
 def iniciar_transmissao():
     print(f"Tentando conectar ao servidor em {SERVER_URL}")
