@@ -17,10 +17,31 @@ def serve_ads_txt():
 def index():
     return render_template('index.html')
 
+# --- Novas Rotas Mapeadas da Interface Principal ---
+
+@app.route('/como-funciona')
+def como_funciona():
+    return render_template('pc_sem_audio.html', titulo="Landell Áudio-PC")
+
+@app.route('/contato')
+def contato():
+    return render_template('contato.html')
+
+@app.route('/transmitir')
+def transmitir():
+    # Página principal de roteamento onde rodará o script de captura via navegador
+    return render_template('transmitir.html')
+
+@app.route('/receber')
+def receber():
+    return render_template('receber.html')
+
+# ---------------------------------------------------
+
 @app.route('/admin')
 def admin():
     global total_acessos
-    total_acessos +=1
+    total_acessos += 1
     return render_template('admin.html')
 
 @sock.route('/audio/<pin>')
@@ -34,7 +55,7 @@ def audio_relay(ws, pin):
         while True:
             data = ws.receive()
             if data:
-                # CORREÇÃO 1: Envia apenas para quem está na mesma sala (PIN)
+                # Envia apenas para quem está na mesma sala (PIN)
                 for cliente in salas[pin]:
                     if cliente != ws:
                         try:
@@ -44,11 +65,11 @@ def audio_relay(ws, pin):
     except Exception as e:
         print(f"Desconectado da sala {pin}")
     finally:
-        # CORREÇÃO 2: 'salas' no plural
+        # Remoção segura e limpeza do dicionário
         if ws in salas.get(pin, []):
             salas[pin].remove(ws)
             
-        if not salas[pin]:
+        if pin in salas and not salas[pin]:
             del salas[pin]
 
 @app.route('/privacidade')
@@ -59,10 +80,14 @@ def privacidade():
 def termos():
     return render_template('termos.html')
 
-if __name__ == '__main__':
+@app.route('/solucoes/pc-sem-audio')
+def pc_sem_audio():
+    # Corrigido para "Landell" mantendo a consistência da marca
+    return render_template('pc_sem_audio.html', titulo="Landell Áudio-PC")
 
+if __name__ == '__main__':
     print("--------------------------------------------------")
-    print("🌐 SERVIDOR RELAY INICIADO")
+    print("🌐 SERVIDOR LANDELL ÁUDIO-PC INICIADO")
     print("Acesse http://127.0.0.1:5000 no navegador do PC")
     print("--------------------------------------------------")
     app.run(host='0.0.0.0', port=5000)
