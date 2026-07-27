@@ -3,44 +3,96 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Termos de Uso - LandellSync</title>
+    <title>Termos de Uso | Landell Áudio-PC</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #fcfcfc;
+        :root {
+            --bg-page: #0a0a0a;
+            --bg-container: #141414;
+            --bg-header: #000000;
+            --accent-green: #00e676;
+            --text-main: #e0e0e0;
+            --border-color: #222222;
         }
-        h1, h2 { color: #222; }
-        h1 { border-bottom: 2px solid #ddd; padding-bottom: 10px; margin-bottom: 20px; }
-        h2 { margin-top: 30px; font-size: 1.3em; }
-        p { margin-bottom: 15px; }
-        a { color: #0056b3; text-decoration: none; }
-        a:hover { text-decoration: underline; }
-        .back-link { display: inline-block; margin-top: 30px; font-weight: bold; background: #eee; padding: 10px 15px; border-radius: 5px; }
-        .back-link:hover { background: #ddd; text-decoration: none; }
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-page);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        nav {
+            background-color: var(--bg-header);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .nav-brand {
+            color: var(--accent-green);
+            font-size: 1.2rem;
+            font-weight: bold;
+            text-decoration: none;
+            letter-spacing: 1px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 40px auto;
+            background: var(--bg-container);
+            padding: 40px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            flex: 1;
+        }
+        h2 { color: #ffffff; }
+        h3 { color: var(--accent-green); margin-top: 30px; }
+        p { color: #aaa; line-height: 1.6; }
+        .site-footer {
+            text-align: center;
+            padding: 30px 15px;
+            background-color: var(--bg-header);
+            border-top: 1px solid var(--border-color);
+            color: #666;
+            font-size: 0.9rem;
+        }
+        .site-footer a { color: var(--text-main); text-decoration: none; margin: 0 10px; }
+        .site-footer a:hover { color: var(--accent-green); }
     </style>
 </head>
 <body>
 
-    <h1>Termos de Uso do LandellSync</h1>
+    <nav>
+        <a href="/" class="nav-brand">LANDELL ÁUDIO-PC</a>
+    </nav>
 
-    <h2>1. Aceitação dos Termos</h2>
-    <p>Ao acessar e utilizar o site landellsync.com.br, você concorda em cumprir estes Termos de Uso. Se você não concorda com alguma parte destes termos, não deve utilizar o nosso serviço.</p>
+    <div class="container">
+        <h2>Termos de Uso</h2>
+        <p>Ao utilizar o Landell Áudio-PC, você concorda expressamente com os termos descritos abaixo.</p>
 
-    <h2>2. Uso do Serviço</h2>
-    <p>O LandellSync fornece uma ferramenta de sincronização e transmissão de áudio local. O usuário é o único responsável pelo conteúdo do áudio que escolhe transmitir através de nossa plataforma. É estritamente proibido utilizar o serviço para transmitir conteúdo ilegal, protegido por direitos autorais não autorizados, ou que viole leis locais e internacionais.</p>
+        <h3>1. Natureza do Serviço</h3>
+        <p>O Landell Áudio-PC é uma ferramenta gratuita e baseada em navegador (Web) desenvolvida para rotear o áudio do sistema operacional para dispositivos móveis via rede.</p>
 
-    <h2>3. Isenção de Responsabilidade</h2>
-    <p>O serviço é fornecido "no estado em que se encontra". Não garantimos que a transmissão será ininterrupta, livre de atrasos (delay) causados por instabilidades de rede do usuário, ou livre de erros. O LandellSync não se responsabiliza por perda de dados, danos ao hardware ou qualquer prejuízo financeiro decorrente do uso ou da impossibilidade de uso da ferramenta.</p>
+        <h3>2. Responsabilidade do Usuário</h3>
+        <p>O usuário é inteiramente responsável pelo conteúdo sonoro transmitido através da plataforma. É estritamente proibido utilizar o serviço para transmitir conteúdo ilegal, interceptar comunicações de terceiros sem autorização ou realizar engenharia reversa para sobrecarregar a infraestrutura do servidor.</p>
 
-    <h2>4. Modificações</h2>
-    <p>Reservamo-nos o direito de modificar ou descontinuar o serviço (ou qualquer parte dele) a qualquer momento, com ou sem aviso prévio. Também podemos atualizar estes Termos de Uso periodicamente.</p>
+        <h3>3. Isenção de Garantias (As-Is)</h3>
+        <p>O serviço é fornecido "no estado em que se encontra" (as is), sem garantias de qualquer tipo, expressas ou implícitas. Não garantimos que a transmissão será ininterrupta ou completamente livre de latência, pois o desempenho depende fortemente da qualidade da rede local (Wi-Fi), hardware e do sistema operacional do usuário.</p>
 
-    <a href="/" class="back-link">&larr; Voltar para a página inicial</a>
+        <h3>4. Modificações do Serviço</h3>
+        <p>Reservamo-nos o direito de modificar, suspender ou descontinuar a plataforma (ou qualquer parte dela) a qualquer momento, com ou sem aviso prévio, a fim de realizar manutenções ou atualizações estruturais.</p>
+    </div>
+
+    <footer class="site-footer">
+        <p>&copy; 2026 Landell Áudio-PC. Todos os direitos reservados.</p>
+        <div>
+            <a href="/privacidade">Política de Privacidade</a> | 
+            <a href="/termos-de-uso">Termos de Uso</a> | 
+            <a href="/contato">Contato</a>
+        </div>
+    </footer>
 
 </body>
 </html>
