@@ -12,7 +12,7 @@ DEVICE_INDEX = 1
 PIN = str(random.randint(1000, 9999))
 
 # 2. Uso do protocolo ws:// e da rota correta (exemplo)
-SERVER_URL = f"ws://192.168.0.10:5000/audio/{PIN}"
+SERVER_URL = f"wss://web-audio-relay-dev.onrender.com/audio/{PIN}"
 
 def iniciar_transmissao():
     print(f"Tentando conectar ao servidor em {SERVER_URL}")
