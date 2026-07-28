@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Receber Áudio - Landell Áudio-PC</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --surface-color: #1e1e1e;
+            --neon-green: #39ff14;
+            --text-color: #ffffff;
+            --text-muted: #a0a0a0;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: var(--surface-color);
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            width: 100%;
+            max-width: 400px;
+        }
+        h2 {
+            margin-bottom: 10px;
+            color: var(--neon-green);
+        }
+        p {
+            color: var(--text-muted);
+            margin-bottom: 30px;
+        }
+        input[type="text"] {
+            width: 80%;
+            padding: 15px;
+            font-size: 24px;
+            text-align: center;
+            letter-spacing: 5px;
+            background-color: var(--bg-color);
+            border: 2px solid #333;
+            color: var(--neon-green);
+            border-radius: 8px;
+            margin-bottom: 20px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        input[type="text"]:focus {
+            border-color: var(--neon-green);
+        }
+        button {
+            background-color: transparent;
+            color: var(--neon-green);
+            border: 2px solid var(--neon-green);
+            padding: 15px 30px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.3s;
+        }
+        button:hover:not(:disabled) {
+            background-color: var(--neon-green);
+            color: var(--bg-color);
+            box-shadow: 0 0 15px var(--neon-green);
+        }
+        button:disabled {
+            border-color: #555;
+            color: #555;
+            cursor: not-allowed;
+        }
+        .status {
+            margin-top: 20px;
+            font-weight: bold;
+            min-height: 24px;
+        }
+        .status.success { color: var(--neon-green); }
+        .status.error { color: #ff3333; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>Receptor de Áudio</h2>
+        <p>Insira o PIN gerado no computador</p>
+        
+        <input type="text" id="pin-input" maxlength="4" placeholder="0000" autocomplete="off">
+        <button id="btn-conectar" disabled>Conectar e Ouvir</button>
+        
+        <div id="status-msg" class="status"></div>
+    </div>
+
+    <!-- Elemento de áudio oculto necessário para o MediaSource -->
+    <audio id="audio-player" autoplay></audio>
+
+    <script>
+        const pinInput = document.getElementById('pin-input');
+        const btnConectar = document.getElementById('btn-conectar');
+        const statusMsg = document.getElementById('status-msg');
+        const audioPlayer = document.getElementById('audio-player'); 
+        
+        let ws = null;
+        let mediaSource = null;
+        let sourceBuffer = null;
+        let queue = []; 
+
+        pinInput.addEventListener('input', function(e) {
+            this.value = this.value.replace(/[^0-9]/g, '');
+            btnConectar.disabled = this.value.length !== 4;
+        });
+
+        btnConectar.addEventListener('click', () => {
+            const pin = pinInput.value;
+            if (pin.length !== 4) return;
+
+            btnConectar.disabled = true;
+            pinInput.disabled = true;
+            statusMsg.innerText = "Conectando...";
+            statusMsg.className = "status";
+
+            mediaSource = new MediaSource();
+            audioPlayer.src = URL.createObjectURL(mediaSource);
+
+            mediaSource.addEventListener('sourceopen', () => {
+                // Usando o codec Opus nativo da web para máxima qualidade e estabilidade
+                sourceBuffer = mediaSource.addSourceBuffer('audio/webm; codecs="opus"');
+                
+                sourceBuffer.addEventListener('updateend', () => {
+                    if (queue.length > 0 && !sourceBuffer.updating) {
+                        sourceBuffer.appendBuffer(queue.shift());
+                    }
+                });
+            });
+
+            audioPlayer.play().catch(e => console.log("Aguardando buffer inicial..."));
+
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/audio/${pin}`;
+            
+            ws = new WebSocket(wsUrl);
+            ws.binaryType = "arraybuffer"; 
+
+            ws.onopen = () => {
+                statusMsg.innerText = "Conectado! Reproduzindo áudio...";
+                statusMsg.className = "status success";
+                btnConectar.innerText = "Desconectar";
+                btnConectar.disabled = false;
+                btnConectar.onclick = desconectar;
+            };
+
+            ws.onmessage = (event) => {
+                const data = event.data;
+                if (sourceBuffer && !sourceBuffer.updating) {
+                    try {
+                        sourceBuffer.appendBuffer(data);
+                    } catch (e) {
+                        queue.push(data);
+                    }
+                } else {
+                    queue.push(data);
+                }
+            };
+
+            ws.onclose = () => {
+                statusMsg.innerText = "Transmissão encerrada.";
+                statusMsg.className = "status error";
+                resetUI();
+            };
+
+            ws.onerror = (error) => {
+                statusMsg.innerText = "Erro de conexão.";
+                statusMsg.className = "status error";
+                resetUI();
+            };
+        });
+
+        function desconectar() {
+            if (ws) ws.close();
+            resetUI();
+        }
+
+        function resetUI() {
+            pinInput.disabled = false;
+            pinInput.value = '';
+            btnConectar.innerText = "Conectar e Ouvir";
+            btnConectar.disabled = true;
+            btnConectar.onclick = null;
+            setTimeout(() => location.reload(), 1500);
+        }
+    </script>
+</body>
+</html>
