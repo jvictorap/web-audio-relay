@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Painel de Transmissão | Landell Áudio-PC</title>
@@ -123,6 +124,19 @@
             color: #888;
             margin-top: 20px;
         }
+        /* Adicione isso no final do seu bloco <style> */
+        .btn-voltar {
+            display: inline-block;
+            margin-top: 30px;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 16px;
+            transition: color 0.3s;
+        }
+        .btn-voltar:hover {
+            color: var(--neon-green);
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
@@ -144,8 +158,11 @@
         <button class="btn-action btn-stop" id="btn-stop" style="display: none;">Encerrar Transmissão</button>
 
         <p class="instrucao">Aviso: Quando solicitado pelo navegador, escolha compartilhar a tela/guia marcando a opção "Compartilhar áudio do sistema".</p>
+
+        <a href="/" class="btn-voltar">&larr; Voltar ao Início</a>
     </div>
 
+    <!-- Apenas o JavaScript foi modificado aqui -->
     <script>
         const pinDisplay = document.getElementById('pin-code');
         const btnStart = document.getElementById('btn-start');
@@ -153,9 +170,11 @@
         const statusBadge = document.getElementById('status');
 
         let ws = null;
-        let currentPin = '';
-        let mediaRecorder = null;
+        let peerConnections = {};
         let localStream = null;
+        let currentPin = '';
+        let myId = 'host';
+        const iceConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
         function generatePIN() {
             return Math.floor(1000 + Math.random() * 9000).toString();
@@ -163,24 +182,24 @@
 
         btnStart.addEventListener('click', async () => {
             try {
-                // 1. ABRE A JANELA DA SUA IMAGEM (Pede permissão para capturar tela + áudio)
+                // Captura via WebRTC
                 localStream = await navigator.mediaDevices.getDisplayMedia({
-                    video: true, // É obrigatório pedir vídeo para o Chrome liberar o áudio do sistema
+                    video: true,
                     audio: {
                         echoCancellation: false,
                         noiseSuppression: false,
-                        sampleRate: 44100
+                        autoGainControl: false,
+                        channelCount: 2,
+                        latency: 0
                     }
                 });
 
-                // Verifica se o usuário realmente compartilhou o áudio (marcou a caixinha)
                 if (localStream.getAudioTracks().length === 0) {
                     alert("Você esqueceu de marcar a opção 'Compartilhar áudio do sistema/guia'. Tente novamente.");
                     localStream.getTracks().forEach(track => track.stop());
                     return;
                 }
 
-                // 2. Conecta ao Servidor WebSocket
                 currentPin = generatePIN();
                 pinDisplay.innerText = currentPin;
 
@@ -189,46 +208,61 @@
                 ws = new WebSocket(wsUrl);
 
                 ws.onopen = () => {
-                    console.log(`Conectado à sala ${currentPin}`);
-                    statusBadge.innerText = "Transmissão Ativa";
+                    statusBadge.innerText = "Aguardando Celular...";
                     statusBadge.classList.add("active");
                     btnStart.style.display = 'none';
                     btnStop.style.display = 'inline-block';
+                };
 
-                    // 3. Empacota o áudio e envia para o servidor continuamente
-                    // Extraímos apenas a faixa de áudio para não gastar banda com o vídeo da tela
-                    const audioStream = new MediaStream(localStream.getAudioTracks());
-                    mediaRecorder = new MediaRecorder(audioStream, { mimeType: 'audio/webm;codecs=opus' });
+                // Gerencia a conexão com os celulares
+                ws.onmessage = async (event) => {
+                    const msg = JSON.parse(event.data);
+                    if (msg.target !== myId) return;
 
-                    mediaRecorder.ondataavailable = (event) => {
-                        if (event.data.size > 0 && ws.readyState === WebSocket.OPEN) {
-                            ws.send(event.data);
-                        }
-                    };
+                    if (msg.type === 'join') {
+                        const phoneId = msg.from;
+                        const pc = new RTCPeerConnection(iceConfig);
+                        peerConnections[phoneId] = pc;
 
-                    // Captura pedaços de áudio a cada 100ms para latência ultra-baixa
-                    mediaRecorder.start(100); 
+                        localStream.getAudioTracks().forEach(track => pc.addTrack(track, localStream));
+
+                        pc.onicecandidate = e => {
+                            if (e.candidate) ws.send(JSON.stringify({ type: 'ice', candidate: e.candidate, from: myId, target: phoneId }));
+                        };
+
+                        const offer = await pc.createOffer();
+                        await pc.setLocalDescription(offer);
+                        ws.send(JSON.stringify({ type: 'offer', sdp: offer, from: myId, target: phoneId }));
+
+                        const listeners = Object.keys(peerConnections).length;
+                        statusBadge.innerText = `Transmissão Ativa (${listeners} Ouvinte${listeners > 1 ? 's' : ''})`;
+                    }
+                    else if (msg.type === 'answer') {
+                        const pc = peerConnections[msg.from];
+                        if (pc) await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+                    }
+                    else if (msg.type === 'ice') {
+                        const pc = peerConnections[msg.from];
+                        if (pc) await pc.addIceCandidate(new RTCIceCandidate(msg.candidate));
+                    }
                 };
 
                 ws.onclose = () => resetUI();
                 ws.onerror = () => { alert("Erro no servidor."); resetUI(); };
 
-                // Se o usuário clicar em "Parar compartilhamento" no botão nativo do Chrome
-                localStream.getVideoTracks()[0].onended = () => {
-                    desconectar();
-                };
+                localStream.getVideoTracks()[0].onended = () => desconectar();
 
             } catch (err) {
                 console.error("Erro ao capturar mídia: ", err);
-                // Isso acontece se o usuário clicar em "Cancelar" na janela da sua imagem
             }
         });
 
         btnStop.addEventListener('click', desconectar);
 
         function desconectar() {
-            if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
             if (localStream) localStream.getTracks().forEach(track => track.stop());
+            Object.values(peerConnections).forEach(pc => pc.close());
+            peerConnections = {};
             if (ws) ws.close();
             resetUI();
         }
@@ -239,7 +273,7 @@
             statusBadge.classList.remove("active");
             btnStart.style.display = 'inline-block';
             btnStop.style.display = 'none';
-    }
+        }
     </script>
 </body>
 </html>

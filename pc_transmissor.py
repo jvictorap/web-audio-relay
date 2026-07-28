@@ -5,7 +5,7 @@ import random
 
 SAMPLE_RATE = 44100
 CHANNELS = 2
-CHUNK = 1024
+CHUNK = 512
 DEVICE_INDEX = 1
 
 # 1. Geração de um PIN para a sala

@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Receber Áudio - Landell Áudio-PC</title>
@@ -86,6 +87,19 @@
         }
         .status.success { color: var(--neon-green); }
         .status.error { color: #ff3333; }
+
+        .btn-voltar {
+            display: inline-block;
+            margin-top: 30px;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 16px;
+            transition: color 0.3s;
+        }
+        .btn-voltar:hover {
+            color: var(--neon-green);
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
@@ -98,10 +112,12 @@
         <button id="btn-conectar" disabled>Conectar e Ouvir</button>
         
         <div id="status-msg" class="status"></div>
+
+        <!-- NOVO: Botão para voltar ao início -->
+        <a href="/" class="btn-voltar">&larr; Voltar ao Início</a>
     </div>
 
-    <!-- Elemento de áudio oculto necessário para o MediaSource -->
-    <audio id="audio-player" autoplay></audio>
+    <audio id="audio-player" playsinline style="display: none;"></audio>
 
     <script>
         const pinInput = document.getElementById('pin-input');
@@ -110,16 +126,22 @@
         const audioPlayer = document.getElementById('audio-player'); 
         
         let ws = null;
-        let mediaSource = null;
-        let sourceBuffer = null;
-        let queue = []; 
+        let peerConnections = {};
+        let myId;
+        const iceConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }; 
 
         pinInput.addEventListener('input', function(e) {
             this.value = this.value.replace(/[^0-9]/g, '');
+            if (ws && ws.readyState === WebSocket.OPEN) return; 
             btnConectar.disabled = this.value.length !== 4;
         });
 
         btnConectar.addEventListener('click', () => {
+            if (btnConectar.innerText === "Desconectar") {
+                desconectar();
+                return;
+            }
+
             const pin = pinInput.value;
             if (pin.length !== 4) return;
 
@@ -128,46 +150,49 @@
             statusMsg.innerText = "Conectando...";
             statusMsg.className = "status";
 
-            mediaSource = new MediaSource();
-            audioPlayer.src = URL.createObjectURL(mediaSource);
-
-            mediaSource.addEventListener('sourceopen', () => {
-                // Usando o codec Opus nativo da web para máxima qualidade e estabilidade
-                sourceBuffer = mediaSource.addSourceBuffer('audio/webm; codecs="opus"');
-                
-                sourceBuffer.addEventListener('updateend', () => {
-                    if (queue.length > 0 && !sourceBuffer.updating) {
-                        sourceBuffer.appendBuffer(queue.shift());
-                    }
-                });
-            });
-
-            audioPlayer.play().catch(e => console.log("Aguardando buffer inicial..."));
-
+            myId = Math.random().toString(36).substring(2, 10);
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const wsUrl = `${protocol}//${window.location.host}/audio/${pin}`;
-            
             ws = new WebSocket(wsUrl);
-            ws.binaryType = "arraybuffer"; 
 
             ws.onopen = () => {
-                statusMsg.innerText = "Conectado! Reproduzindo áudio...";
-                statusMsg.className = "status success";
-                btnConectar.innerText = "Desconectar";
-                btnConectar.disabled = false;
-                btnConectar.onclick = desconectar;
+                statusMsg.innerText = "Conectando ao PC... ⏳";
+                ws.send(JSON.stringify({ type: 'join', from: myId, target: 'host' }));
             };
 
-            ws.onmessage = (event) => {
-                const data = event.data;
-                if (sourceBuffer && !sourceBuffer.updating) {
-                    try {
-                        sourceBuffer.appendBuffer(data);
-                    } catch (e) {
-                        queue.push(data);
-                    }
-                } else {
-                    queue.push(data);
+            ws.onmessage = async (event) => {
+                const msg = JSON.parse(event.data);
+                if (msg.target !== myId) return;
+
+                if (!peerConnections['host']) {
+                    const pc = new RTCPeerConnection(iceConfig);
+                    peerConnections['host'] = pc;
+                    
+                    pc.onicecandidate = e => {
+                        if (e.candidate) ws.send(JSON.stringify({ type: 'ice', candidate: e.candidate, from: myId, target: 'host' }));
+                    };
+                    
+                    pc.ontrack = e => {
+                        audioPlayer.srcObject = e.streams[0];
+                        audioPlayer.play().catch(err => console.log("Aguardando interação para tocar o áudio"));
+                        
+                        statusMsg.innerText = "Conectado! Reproduzindo áudio...";
+                        statusMsg.className = "status success";
+                        btnConectar.innerText = "Desconectar";
+                        btnConectar.disabled = false;
+                    };
+                }
+
+                const pc = peerConnections['host'];
+
+                if (msg.type === 'offer') {
+                    await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+                    const answer = await pc.createAnswer();
+                    await pc.setLocalDescription(answer);
+                    ws.send(JSON.stringify({ type: 'answer', sdp: answer, from: myId, target: 'host' }));
+                } 
+                else if (msg.type === 'ice') {
+                    await pc.addIceCandidate(new RTCIceCandidate(msg.candidate));
                 }
             };
 
@@ -186,6 +211,11 @@
 
         function desconectar() {
             if (ws) ws.close();
+            if (peerConnections['host']) {
+                peerConnections['host'].close();
+                peerConnections = {};
+            }
+            audioPlayer.srcObject = null;
             resetUI();
         }
 
@@ -194,7 +224,6 @@
             pinInput.value = '';
             btnConectar.innerText = "Conectar e Ouvir";
             btnConectar.disabled = true;
-            btnConectar.onclick = null;
             setTimeout(() => location.reload(), 1500);
         }
     </script>
