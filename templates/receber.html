@@ -1,56 +1,162 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Receber | Landell Áudio-PC</title>
+    <title>Receber Áudio - Landell Áudio-PC</title>
     <style>
-        body { font-family: 'Segoe UI', Roboto, sans-serif; background-color: #0a0a0a; color: #e0e0e0; text-align: center; padding: 50px 20px; margin: 0; }
-        .container { background: #141414; padding: 40px; border-radius: 12px; max-width: 400px; margin: 0 auto; border: 1px solid #222; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); }
-        h2 { color: #ffffff; margin-top: 0; }
-        input[type="text"] { width: calc(100% - 30px); padding: 15px; margin: 20px 0; border-radius: 8px; border: 1px solid #333; background: #2a2a2a; color: #fff; font-size: 24px; text-align: center; letter-spacing: 5px; box-sizing: border-box;}
-        input[type="text"]:focus { outline: 1px solid #00e676; }
-        .btn { width: 100%; background: #00e676; color: #000; padding: 15px 30px; border: none; border-radius: 30px; font-size: 1.2rem; font-weight: bold; cursor: pointer; transition: 0.3s; box-shadow: 0 4px 15px rgba(0, 230, 118, 0.3); }
-        .btn:hover { background: #00c765; transform: translateY(-2px); }
-        .status { margin-top: 20px; color: #aaa; font-size: 1rem; }
-        a.voltar { color: #00e676; text-decoration: none; display: inline-block; margin-top: 30px; font-size: 0.9rem; }
-        a.voltar:hover { text-decoration: underline; }
+        :root {
+            --bg-color: #121212;
+            --surface-color: #1e1e1e;
+            --neon-green: #39ff14;
+            --text-color: #ffffff;
+            --text-muted: #a0a0a0;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: var(--surface-color);
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            width: 100%;
+            max-width: 400px;
+        }
+        h2 {
+            margin-bottom: 10px;
+            color: var(--neon-green);
+        }
+        p {
+            color: var(--text-muted);
+            margin-bottom: 30px;
+        }
+        input[type="text"] {
+            width: 80%;
+            padding: 15px;
+            font-size: 24px;
+            text-align: center;
+            letter-spacing: 5px;
+            background-color: var(--bg-color);
+            border: 2px solid #333;
+            color: var(--neon-green);
+            border-radius: 8px;
+            margin-bottom: 20px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        input[type="text"]:focus {
+            border-color: var(--neon-green);
+        }
+        button {
+            background-color: transparent;
+            color: var(--neon-green);
+            border: 2px solid var(--neon-green);
+            padding: 15px 30px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.3s;
+        }
+        button:hover:not(:disabled) {
+            background-color: var(--neon-green);
+            color: var(--bg-color);
+            box-shadow: 0 0 15px var(--neon-green);
+        }
+        button:disabled {
+            border-color: #555;
+            color: #555;
+            cursor: not-allowed;
+        }
+        .status {
+            margin-top: 20px;
+            font-weight: bold;
+            min-height: 24px;
+        }
+        .status.success { color: var(--neon-green); }
+        .status.error { color: #ff3333; }
+
+        .btn-voltar {
+            display: inline-block;
+            margin-top: 30px;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 16px;
+            transition: color 0.3s;
+        }
+        .btn-voltar:hover {
+            color: var(--neon-green);
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
+
     <div class="container">
-        <h2>Modo Recepção (Celular)</h2>
-        <p>Digite o PIN mostrado no PC:</p>
+        <h2>Receptor de Áudio</h2>
+        <p>Insira o PIN gerado no computador</p>
         
-        <input type="text" id="pin-input" placeholder="0000" maxlength="4">
-        <button class="btn" onclick="startReceiving()">Conectar e Ouvir</button>
-        <p id="receive-status" class="status">Aguardando conexão...</p>
+        <input type="text" id="pin-input" maxlength="4" placeholder="0000" autocomplete="off">
+        <button id="btn-conectar" disabled>Conectar e Ouvir</button>
         
-        <a href="/" class="voltar">&larr; Voltar ao Início</a>
+        <div id="status-msg" class="status"></div>
+
+        <!-- NOVO: Botão para voltar ao início -->
+        <a href="/" class="btn-voltar">&larr; Voltar ao Início</a>
     </div>
 
-    <!-- Elemento crucial para tocar o som no celular -->
-    <audio id="remoteAudio" autoplay playsinline style="display: none;"></audio>
+    <audio id="audio-player" playsinline style="display: none;"></audio>
 
     <script>
-        let ws;
+        const pinInput = document.getElementById('pin-input');
+        const btnConectar = document.getElementById('btn-conectar');
+        const statusMsg = document.getElementById('status-msg');
+        const audioPlayer = document.getElementById('audio-player'); 
+        
+        let ws = null;
         let peerConnections = {};
         let myId;
-        const iceConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+        const iceConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }; 
 
-        function startReceiving() {
-            const pinInput = document.getElementById('pin-input').value;
-            const statusText = document.getElementById('receive-status');
+        pinInput.addEventListener('input', function(e) {
+            this.value = this.value.replace(/[^0-9]/g, '');
+            if (ws && ws.readyState === WebSocket.OPEN) return; 
+            btnConectar.disabled = this.value.length !== 4;
+        });
 
-            if (pinInput.length !== 4) return alert("Digite um PIN de 4 dígitos.");
+        btnConectar.addEventListener('click', () => {
+            if (btnConectar.innerText === "Desconectar") {
+                desconectar();
+                return;
+            }
+
+            const pin = pinInput.value;
+            if (pin.length !== 4) return;
+
+            btnConectar.disabled = true;
+            pinInput.disabled = true;
+            statusMsg.innerText = "Conectando...";
+            statusMsg.className = "status";
 
             myId = Math.random().toString(36).substring(2, 10);
-            
-            const protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
-            ws = new WebSocket(protocol + location.host + '/audio/' + pinInput);
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/audio/${pin}`;
+            ws = new WebSocket(wsUrl);
 
             ws.onopen = () => {
-                statusText.innerText = "Conectando ao PC... ⏳";
+                statusMsg.innerText = "Conectando ao PC... ⏳";
                 ws.send(JSON.stringify({ type: 'join', from: myId, target: 'host' }));
             };
 
@@ -67,12 +173,13 @@
                     };
                     
                     pc.ontrack = e => {
-                        const audioElement = document.getElementById('remoteAudio');
-                        audioElement.srcObject = e.streams[0];
-                        audioElement.play().catch(err => console.log("Aguardando clique do usuário para tocar"));
+                        audioPlayer.srcObject = e.streams[0];
+                        audioPlayer.play().catch(err => console.log("Aguardando interação para tocar o áudio"));
                         
-                        statusText.innerText = "Conectado! Som na caixa! 🔊";
-                        statusText.style.color = "#00e676";
+                        statusMsg.innerText = "Conectado! Reproduzindo áudio...";
+                        statusMsg.className = "status success";
+                        btnConectar.innerText = "Desconectar";
+                        btnConectar.disabled = false;
                     };
                 }
 
@@ -88,6 +195,36 @@
                     await pc.addIceCandidate(new RTCIceCandidate(msg.candidate));
                 }
             };
+
+            ws.onclose = () => {
+                statusMsg.innerText = "Transmissão encerrada.";
+                statusMsg.className = "status error";
+                resetUI();
+            };
+
+            ws.onerror = (error) => {
+                statusMsg.innerText = "Erro de conexão.";
+                statusMsg.className = "status error";
+                resetUI();
+            };
+        });
+
+        function desconectar() {
+            if (ws) ws.close();
+            if (peerConnections['host']) {
+                peerConnections['host'].close();
+                peerConnections = {};
+            }
+            audioPlayer.srcObject = null;
+            resetUI();
+        }
+
+        function resetUI() {
+            pinInput.disabled = false;
+            pinInput.value = '';
+            btnConectar.innerText = "Conectar e Ouvir";
+            btnConectar.disabled = true;
+            setTimeout(() => location.reload(), 1500);
         }
     </script>
 </body>

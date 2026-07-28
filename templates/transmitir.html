@@ -1,69 +1,220 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Transmitir | Landell Áudio-PC</title>
+    <title>Painel de Transmissão | Landell Áudio-PC</title>
+    
     <style>
-        body { font-family: 'Segoe UI', Roboto, sans-serif; background-color: #0a0a0a; color: #e0e0e0; text-align: center; padding: 50px 20px; margin: 0; }
-        .container { background: #141414; padding: 40px; border-radius: 12px; max-width: 500px; margin: 0 auto; border: 1px solid #222; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); }
-        h2 { color: #ffffff; margin-top: 0; }
-        .pin-display { font-size: 60px; color: #00e676; font-weight: bold; letter-spacing: 10px; margin: 20px 0; }
-        .btn { background: #00e676; color: #000; padding: 15px 30px; border: none; border-radius: 30px; font-size: 1.2rem; font-weight: bold; cursor: pointer; transition: 0.3s; box-shadow: 0 4px 15px rgba(0, 230, 118, 0.3); }
-        .btn:hover { background: #00c765; transform: translateY(-2px); }
-        .status { margin-top: 20px; color: #aaa; font-size: 1rem; }
-        a.voltar { color: #00e676; text-decoration: none; display: inline-block; margin-top: 30px; font-size: 0.9rem; }
-        a.voltar:hover { text-decoration: underline; }
+        :root {
+            --bg-page: #0a0a0a;
+            --bg-container: #141414;
+            --bg-header: #000000;
+            --accent-green: #00e676;
+            --accent-red: #ff1744;
+            --text-main: #e0e0e0;
+            --text-white: #ffffff;
+            --border-color: #222222;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-page);
+            color: var(--text-main);
+        }
+
+        nav {
+            background-color: var(--bg-header);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .nav-brand {
+            color: var(--accent-green);
+            font-size: 1.2rem;
+            font-weight: bold;
+            text-decoration: none;
+            letter-spacing: 1px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 50px auto;
+            background: var(--bg-container);
+            padding: 40px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            text-align: center;
+        }
+
+        h2 {
+            color: var(--text-white);
+            margin-top: 0;
+        }
+
+        .pin-display {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 4rem;
+            font-weight: bold;
+            color: var(--accent-green);
+            background: var(--bg-header);
+            padding: 20px;
+            border-radius: 8px;
+            border: 2px dashed var(--accent-green);
+            margin: 30px 0;
+            letter-spacing: 5px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            background-color: #333;
+            color: #aaa;
+            margin-bottom: 20px;
+        }
+
+        .status-badge.active {
+            background-color: rgba(0, 230, 118, 0.2);
+            color: var(--accent-green);
+        }
+
+        .btn-action {
+            display: inline-block;
+            background-color: var(--accent-green);
+            color: #000;
+            padding: 15px 40px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.3s;
+            width: 100%;
+            margin-bottom: 15px;
+        }
+
+        .btn-action:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 230, 118, 0.3);
+        }
+
+        .btn-stop {
+            background-color: transparent;
+            color: var(--accent-red);
+            border: 1px solid var(--accent-red);
+        }
+
+        .btn-stop:hover {
+            background-color: rgba(255, 23, 68, 0.1);
+            box-shadow: none;
+        }
+
+        .instrucao {
+            font-size: 0.9rem;
+            color: #888;
+            margin-top: 20px;
+        }
+        /* Adicione isso no final do seu bloco <style> */
+        .btn-voltar {
+            display: inline-block;
+            margin-top: 30px;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 16px;
+            transition: color 0.3s;
+        }
+        .btn-voltar:hover {
+            color: var(--neon-green);
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
+
+    <nav>
+        <a href="/" class="nav-brand">LANDELL ÁUDIO-PC</a>
+    </nav>
+
     <div class="container">
-        <h2>Modo Transmissão (PC)</h2>
-        <p>Seu código de acesso é:</p>
+        <h2>Painel de Transmissão</h2>
         
-        <!-- O PIN será gerado aqui -->
-        <div id="pin-display" class="pin-display">----</div>
+        <div id="status" class="status-badge">Aguardando Início</div>
+
+        <p>Acesse o site no seu celular e digite o PIN abaixo:</p>
         
-        <button class="btn" onclick="startTransmitting()">Iniciar Transmissão</button>
-        <p id="transmit-status" class="status">Aguardando início...</p>
-        
-        <a href="/" class="voltar">&larr; Voltar ao Início</a>
+        <div class="pin-display" id="pin-code">----</div>
+
+        <button class="btn-action" id="btn-start">Capturar Áudio do PC</button>
+        <button class="btn-action btn-stop" id="btn-stop" style="display: none;">Encerrar Transmissão</button>
+
+        <p class="instrucao">Aviso: Quando solicitado pelo navegador, escolha compartilhar a tela/guia marcando a opção "Compartilhar áudio do sistema".</p>
+
+        <a href="/" class="btn-voltar">&larr; Voltar ao Início</a>
     </div>
 
+    <!-- Apenas o JavaScript foi modificado aqui -->
     <script>
-        let ws;
+        const pinDisplay = document.getElementById('pin-code');
+        const btnStart = document.getElementById('btn-start');
+        const btnStop = document.getElementById('btn-stop');
+        const statusBadge = document.getElementById('status');
+
+        let ws = null;
         let peerConnections = {};
-        let localStream;
-        let currentPin;
+        let localStream = null;
+        let currentPin = '';
         let myId = 'host';
         const iceConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
-        // Gera o PIN assim que a página carrega
-        window.onload = () => {
-            currentPin = Math.floor(1000 + Math.random() * 9000).toString();
-            document.getElementById('pin-display').innerText = currentPin;
-        };
+        function generatePIN() {
+            return Math.floor(1000 + Math.random() * 9000).toString();
+        }
 
-        async function startTransmitting() {
-            const statusText = document.getElementById('transmit-status');
+        btnStart.addEventListener('click', async () => {
             try {
-                // Solicita a captura de áudio do sistema
+                // Captura via WebRTC
                 localStream = await navigator.mediaDevices.getDisplayMedia({
                     video: true,
-                    audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 2 }
+                    audio: {
+                        echoCancellation: false,
+                        noiseSuppression: false,
+                        autoGainControl: false,
+                        channelCount: 2,
+                        latency: 0
+                    }
                 });
 
                 if (localStream.getAudioTracks().length === 0) {
-                    alert("⚠️ Você esqueceu de marcar a opção 'Compartilhar áudio do sistema' na janela do navegador!");
+                    alert("Você esqueceu de marcar a opção 'Compartilhar áudio do sistema/guia'. Tente novamente.");
+                    localStream.getTracks().forEach(track => track.stop());
                     return;
                 }
 
-                // Conecta ao WebSocket do Flask
-                const protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
-                ws = new WebSocket(protocol + location.host + '/audio/' + currentPin);
+                currentPin = generatePIN();
+                pinDisplay.innerText = currentPin;
 
-                ws.onopen = () => { statusText.innerText = "Sala aberta. Aguardando celular conectar... ⏳"; };
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const wsUrl = `${protocol}//${window.location.host}/audio/${currentPin}`;
+                ws = new WebSocket(wsUrl);
 
+                ws.onopen = () => {
+                    statusBadge.innerText = "Aguardando Celular...";
+                    statusBadge.classList.add("active");
+                    btnStart.style.display = 'none';
+                    btnStop.style.display = 'inline-block';
+                };
+
+                // Gerencia a conexão com os celulares
                 ws.onmessage = async (event) => {
                     const msg = JSON.parse(event.data);
                     if (msg.target !== myId) return;
@@ -73,7 +224,7 @@
                         const pc = new RTCPeerConnection(iceConfig);
                         peerConnections[phoneId] = pc;
 
-                        localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+                        localStream.getAudioTracks().forEach(track => pc.addTrack(track, localStream));
 
                         pc.onicecandidate = e => {
                             if (e.candidate) ws.send(JSON.stringify({ type: 'ice', candidate: e.candidate, from: myId, target: phoneId }));
@@ -82,23 +233,46 @@
                         const offer = await pc.createOffer();
                         await pc.setLocalDescription(offer);
                         ws.send(JSON.stringify({ type: 'offer', sdp: offer, from: myId, target: phoneId }));
-                        
+
                         const listeners = Object.keys(peerConnections).length;
-                        statusText.innerText = `Transmissão ATIVA! 🔴 (${listeners} ouvinte${listeners > 1 ? 's' : ''})`;
-                        statusText.style.color = "#00e676";
-                    } 
+                        statusBadge.innerText = `Transmissão Ativa (${listeners} Ouvinte${listeners > 1 ? 's' : ''})`;
+                    }
                     else if (msg.type === 'answer') {
                         const pc = peerConnections[msg.from];
                         if (pc) await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
-                    } 
+                    }
                     else if (msg.type === 'ice') {
                         const pc = peerConnections[msg.from];
                         if (pc) await pc.addIceCandidate(new RTCIceCandidate(msg.candidate));
                     }
                 };
+
+                ws.onclose = () => resetUI();
+                ws.onerror = () => { alert("Erro no servidor."); resetUI(); };
+
+                localStream.getVideoTracks()[0].onended = () => desconectar();
+
             } catch (err) {
-                statusText.innerText = "Erro ao capturar tela/áudio. Tente novamente.";
+                console.error("Erro ao capturar mídia: ", err);
             }
+        });
+
+        btnStop.addEventListener('click', desconectar);
+
+        function desconectar() {
+            if (localStream) localStream.getTracks().forEach(track => track.stop());
+            Object.values(peerConnections).forEach(pc => pc.close());
+            peerConnections = {};
+            if (ws) ws.close();
+            resetUI();
+        }
+
+        function resetUI() {
+            pinDisplay.innerText = "----";
+            statusBadge.innerText = "Aguardando Início";
+            statusBadge.classList.remove("active");
+            btnStart.style.display = 'inline-block';
+            btnStop.style.display = 'none';
         }
     </script>
 </body>
